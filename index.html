@@ -18,7 +18,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script async src="https://docs.opencv.org/4.x/opencv.js" type="text/javascript" id="opencv-js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- เรียกใช้ pdf-js สำหรับการ Render หน้า PDF เพื่อถอดมาแสตมป์ลายน้ำไทยแท้ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
     <style>
@@ -33,7 +32,7 @@
             <h1 class="text-2xl md:text-3xl font-bold text-blue-800 mb-2">ระบบสร้างสำเนาเอกสารปลอดภัย</h1>
             <p class="text-sm text-green-600 font-semibold flex justify-center items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-                PDPA Compliant: ทำงานในเครื่อง 100% ปรับอัตราส่วนภาพไม่ให้บิดเบี้ยว และรองรับ PDF หลายหน้า
+                PDPA Compliant: แก้ไขระบบเรนเดอร์ PDF ตัวเนื้อหาหลักและลายน้ำครบถ้วน
             </p>
         </header>
 
@@ -67,14 +66,13 @@
                 <div id="canvasContainer" class="relative hidden max-w-full overflow-hidden rounded-lg shadow-sm">
                     <canvas id="outputCanvas" class="max-w-full h-auto"></canvas>
                 </div>
-                <div id="pdfInfoBadge" class="mt-2 hidden bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">โหมดเอกสาร PDF: ส่งออกตรงตามที่พรีวิวทุกหน้า</div>
+                <div id="pdfInfoBadge" class="mt-2 hidden bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">โหมดเอกสาร PDF: รวมร่างเนื้อหาเดิมพร้อมลายน้ำภาษาไทย</div>
             </div>
         </div>
     </div>
 
     <canvas id="sourceCanvas" class="hidden"></canvas>
     <canvas id="croppedCanvas" class="hidden"></canvas>
-    <!-- Canvas ซ่อนไว้ใช้สำหรับประมวลผลเบื้องหลังของแต่ละหน้า PDF -->
     <canvas id="hiddenWorkerCanvas" class="hidden"></canvas>
 
     <footer class="text-center py-4 text-xs text-gray-400 border-t border-gray-100 mt-8 bg-white w-full">
@@ -112,7 +110,7 @@
                 reader.onload = async function(event) {
                     const typedarray = new Uint8Array(event.target.result);
                     pdfDocInstance = await pdfjsLib.getDocument(typedarray).promise;
-                    renderPdfPageToPreview(1); // พรีวิวหน้าแรกให้ผู้ใช้เห็น
+                    renderPdfPageToPreview(1);
                 };
                 reader.readAsArrayBuffer(file);
             } else {
@@ -131,25 +129,29 @@
             }
         });
 
-        // ฟังก์ชันอ่านและวาดตัวอย่างไฟล์ PDF ลง Canvas หน้าจอ
         async function renderPdfPageToPreview(pageNumber) {
             if (!pdfDocInstance) return;
             const page = await pdfDocInstance.getPage(pageNumber);
             
-            // ใช้ Scale สูงเพื่อให้ตัวอักษรคมชัด
             const viewport = page.getViewport({ scale: 2.0 });
             outputCanvas.width = viewport.width;
             outputCanvas.height = viewport.height;
             
             const ctx = outputCanvas.getContext('2d');
+            
+            // เคลียร์พื้นหลังให้เป็นสีขาวก่อนวาดเนื้อหา PDF
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+
             const renderContext = {
                 canvasContext: ctx,
                 viewport: viewport
             };
             
+            // รอให้ข้อความและเอกสารเดิมถูกวาดจนเสร็จ
             await page.render(renderContext).promise;
             
-            // วาดลายน้ำทับซ้อนลงไปใน Preview ทันที
+            // แสตมป์ลายน้ำไทยทับลงไป
             drawWatermarkLayer(ctx, outputCanvas.width, outputCanvas.height);
             
             document.getElementById('previewPlaceholder').classList.add('hidden');
@@ -219,7 +221,6 @@
         function renderImagePreview() {
             if (!originalImage) return;
             
-            // ตั้งความละเอียดในการจัดการภาพที่ 1600px เพื่อความคมชัดสูง
             outputCanvas.width = 1600;
             const scaleRatio = 1600 / croppedCanvas.width;
             outputCanvas.height = croppedCanvas.height * scaleRatio;
@@ -252,7 +253,6 @@
             return lines;
         }
 
-        // ฟังก์ชันวาดลายน้ำภาษาไทย (ใช้ตัวแปรคำนวณสเกลแบบไดนามิกตามขนาดภาพจริง)
         function drawWatermarkLayer(ctx, canvasWidth, canvasHeight) {
             const purpose = purposeInput.value || "ใช้สำหรับรับมอบอำนาจเข้าชี้แจงเกี่ยวกับสภาพการจ้างเท่านั้น";
             let dateText = "";
@@ -261,7 +261,6 @@
                 dateText = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear() + 543}`;
             }
 
-            // คำนวณขนาดตัวอักษรให้เหมาะสมตามมิติความกว้างของไฟล์
             const fontSize = Math.max(24, Math.round(canvasWidth * 0.032));
             ctx.font = `bold ${fontSize}px 'Sarabun'`;
             
@@ -287,8 +286,7 @@
             ctx.translate(centerX, centerY);
             ctx.rotate(angle);
 
-            // วาดเส้นคู่ขนานคาดกลาง
-            ctx.strokeStyle = "rgba(0, 40, 220, 0.8)"; 
+            ctx.strokeStyle = "rgba(0, 40, 220, 0.75)"; 
             ctx.lineWidth = Math.max(3, Math.round(canvasWidth * 0.004));
 
             ctx.beginPath();
@@ -301,8 +299,7 @@
             ctx.lineTo(lineLength / 2, dynamicSpacing / 2);
             ctx.stroke();
 
-            // พิมพ์ข้อความวัตถุประสงค์
-            ctx.fillStyle = "rgba(0, 30, 200, 0.9)";
+            ctx.fillStyle = "rgba(0, 30, 200, 0.85)";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
 
@@ -312,13 +309,11 @@
             }
             ctx.restore();
 
-            // พิมพ์คำว่าสำเนาถูกต้องและวันที่เยื้องมาทางมุมขวาล่างของตัวบล็อกข้อความ
             ctx.save();
-            ctx.fillStyle = "rgba(0, 30, 200, 0.9)";
+            ctx.fillStyle = "rgba(0, 30, 200, 0.85)";
             ctx.font = `bold ${fontSize}px 'Sarabun'`;
             ctx.textAlign = "center";
             
-            // คำนวณให้สัมพันธ์กับทิศทางมุมเอียง
             const footerX = canvasWidth * 0.53;
             const footerYStart = centerY + (dynamicSpacing / 2) + (fontSize * 1.5);
 
@@ -327,7 +322,6 @@
             ctx.restore();
         }
 
-        // รีเฟรชหน้าพรีวิวอัตโนมัติเมื่อเปลี่ยนข้อความหรือวันที่
         purposeInput.addEventListener('input', () => {
             if (isPdfMode) renderPdfPageToPreview(1);
             else renderImagePreview();
@@ -341,7 +335,15 @@
         generateBtn.addEventListener('click', async () => {
             if (isPdfMode) {
                 if (!pdfDocInstance) return;
+                
+                // เปลี่ยนข้อความปุ่มระหว่างประมวลผลเซฟไฟล์
+                generateBtn.disabled = true;
+                generateBtn.innerText = "กำลังประมวลผลเอกสาร...";
+                
                 await exportMultiPagePdf();
+                
+                generateBtn.disabled = false;
+                generateBtn.innerText = "Gen & Save to PDF";
             } else {
                 if (!originalImage) {
                     alert("กรุณาอัปโหลดรูปภาพ หรือไฟล์ PDF ก่อนครับ");
@@ -351,24 +353,18 @@
             }
         });
 
-        // ฟังก์ชันส่งออกภาพ (รักษาสัดส่วนจริง 100% ไม่บีบอัดความสูงพาสปอร์ต)
         function exportImageToPdf() {
             const { jsPDF } = window.jspdf;
-            
-            // เช็คว่ารูปดั้งเดิมมาเป็นแนวตั้งหรือแนวนอน เพื่อจัดวางทิศทางกระดาษ PDF A4
             const orientation = outputCanvas.width >= outputCanvas.height ? 'l' : 'p';
             const pdf = new jsPDF(orientation, 'mm', 'a4');
             
             const pageWidth = pdf.internal.pageSize.getWidth();
             const pageHeight = pdf.internal.pageSize.getHeight();
-            
-            // คำนวณสเกลภาพให้พอดีกระดาษ A4 โดยอิงอัตราส่วนดั้งเดิม (Aspect Ratio) สูงไม่เพี้ยนแน่นอน
             const canvasRatio = outputCanvas.width / outputCanvas.height;
             
-            let printWidth = pageWidth - 20; // เว้นขอบซ้ายขวาฝั่งละ 10 มม.
+            let printWidth = pageWidth - 20;
             let printHeight = printWidth / canvasRatio;
             
-            // หากความสูงคำนวณแล้วเกินหน้ากระดาษ A4 ให้ยึดความสูงเป็นหลักแทน
             if (printHeight > (pageHeight - 20)) {
                 printHeight = pageHeight - 20;
                 printWidth = printHeight * canvasRatio;
@@ -382,7 +378,7 @@
             pdf.save('Certified_Document.pdf');
         }
 
-        // ฟังก์ชันส่งออก PDF หลายหน้า (ดึงภาพพรีวิวทุกหน้ามาจัดพิมพ์ใหม่ทำให้ข้อความลายน้ำไทยตรงกับหน้าจอ 100%)
+        // คีย์หลักในการแก้ไขปัญหา: ลูปประมวลผลรอเรนเดอร์เนื้อหาทีละหน้าแบบ Sync ครบถ้วน
         async function exportMultiPagePdf() {
             const { jsPDF } = window.jspdf;
             let finalPdf = null;
@@ -393,19 +389,24 @@
             for (let i = 1; i <= totalPages; i++) {
                 const page = await pdfDocInstance.getPage(i);
                 
-                // ใช้ค่า Scale 2.0 เพื่อพิมพ์ออกมาแล้วคมชัด อ่านตัวหนังสือเล็กๆ ในเอกสารหลักได้สบาย
+                // ใช้ Scale 2.0 ในการแปลงหน้าไฟล์จริงเพื่อรักษาความละเอียดเนื้อเอกสาร
                 const viewport = page.getViewport({ scale: 2.0 });
                 hiddenWorkerCanvas.width = viewport.width;
                 hiddenWorkerCanvas.height = viewport.height;
+                
+                // รีเซ็ตล้างพื้นหลังเป็นสีขาวให้พนักงานก่อนเรนเดอร์ข้อความเอกสาร
+                workerCtx.fillStyle = '#ffffff';
+                workerCtx.fillRect(0, 0, hiddenWorkerCanvas.width, hiddenWorkerCanvas.height);
                 
                 const renderContext = {
                     canvasContext: workerCtx,
                     viewport: viewport
                 };
                 
+                // บังคับให้ขบวนการวาดเนื้อความ PDF ดั้งเดิมเสร็จสิ้นเรียบร้อย (หัวใจสำคัญในการแก้บั๊ก)
                 await page.render(renderContext).promise;
                 
-                // สแตมป์ลายน้ำขีดคร่อมลงบนหน้าเบื้องหลังนั้นๆ
+                // นำเลเยอร์ข้อความไทยคาดกลางมาประทับทับลงบนเนื้อหานั้นๆ
                 drawWatermarkLayer(workerCtx, hiddenWorkerCanvas.width, hiddenWorkerCanvas.height);
                 
                 const pageOrientation = hiddenWorkerCanvas.width >= hiddenWorkerCanvas.height ? 'l' : 'p';
@@ -419,9 +420,8 @@
                 const pWidth = finalPdf.internal.pageSize.getWidth();
                 const pHeight = finalPdf.internal.pageSize.getHeight();
                 
-                const imgData = hiddenWorkerCanvas.toDataURL('image/jpeg', 0.90);
-                
-                // วางหน้าเอกสารนั้นแบบเต็มเนื้อหากระดาษ A4
+                // ดึงภาพรวมร่าง (เนื้อหาเดิม + ลายน้ำคาดกลาง) ใส่เข้าชุดหน้ากระดาษ PDF
+                const imgData = hiddenWorkerCanvas.toDataURL('image/jpeg', 0.92);
                 finalPdf.addImage(imgData, 'JPEG', 0, 0, pWidth, pHeight);
             }
             
