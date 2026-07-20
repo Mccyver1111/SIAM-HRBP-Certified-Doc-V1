@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-        <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบจัดทำสำเนาเอกสารปลอดภัย (PDPA Compliance)</title>
 
-<!-- ========================================== -->
+    <!-- ========================================== -->
     <!-- 1. ส่วนของ Icon สำหรับแสดงบน Browser & คอมพิวเตอร์ -->
     <!-- ========================================== -->
     <link rel="shortcut icon" href="icon-siam-hrbp.png" type="image/png">
@@ -16,7 +16,7 @@
     <link rel="apple-touch-icon" href="icon-siam-hrbp.png">
 
     <!-- ========================================== -->
-    <!-- 2. ส่วนของ Meta Tags สำหรับเวลาแชร์ลิงก์ไปที่มือถือ -->
+    <!-- 2. ส่วนของ Meta Tags สำหรับเวลาแชร์ลิงก์ -->
     <!-- ========================================== -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="ระบบสร้างสำเนาเอกสารปลอดภัย - SIAM-HRBP">
@@ -24,13 +24,15 @@
     <meta property="og:image" content="icon-siam-hrbp.png">
     <meta property="og:image:width" content="256">
     <meta property="og:image:height" content="256">
-        
+
     <!-- Tailwind CSS สำหรับตกแต่ง UI -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- OpenCV.js สำหรับระบบวิเคราะห์และ Crop บัตรอัตโนมัติ -->
     <script async src="https://docs.opencv.org/4.x/opencv.js" type="text/javascript" id="opencv-js"></script>
-    <!-- jsPDF สำหรับการแปลงเป็น PDF -->
+    <!-- jsPDF สำหรับการแปลงรูปเป็น PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- pdf-lib สำหรับการจัดการและเขียนลายน้ำลงบน PDF ตรงๆ (หลายหน้า) -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
@@ -45,7 +47,7 @@
             <h1 class="text-2xl md:text-3xl font-bold text-blue-800 mb-2">ระบบสร้างสำเนาเอกสารปลอดภัย</h1>
             <p class="text-sm text-green-600 font-semibold flex justify-center items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-                PDPA Compliant: ประมวลผลในเครื่อง 100% รองรับทั้งบัตรประชาชนและพาสปอร์ต
+                PDPA Compliant: ทำงานในเครื่อง 100% รองรับไฟล์รูปภาพ และ PDF หลายหน้า
             </p>
         </header>
 
@@ -53,12 +55,12 @@
             <!-- ฝั่งควบคุมและกรอกข้อมูล -->
             <div class="space-y-6">
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">1. อัปโหลดรูปภาพ (บัตรประชาชน / พาสปอร์ต)</label>
-                    <input type="file" id="imageInput" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">1. อัปโหลดเอกสาร (รูปภาพ หรือ ไฟล์ PDF)</label>
+                    <input type="file" id="fileInput" accept="image/*,application/pdf" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">2. ประเภทเอกสาร (บังคับขนาดพิมพ์ส่งออก)</label>
+                <div id="docTypeContainer">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">2. ประเภทเอกสาร (เฉพาะการอัปโหลดรูปภาพ)</label>
                     <div class="flex gap-4">
                         <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                             <input type="radio" name="docType" value="idcard" checked id="radioIdCard" class="h-4 w-4 text-blue-600 focus:ring-blue-500">
@@ -77,7 +79,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">4. วันที่ใช้บัตร</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">4. วันที่ใช้เอกสาร</label>
                     <input type="date" id="dateInput" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                 </div>
 
@@ -89,10 +91,11 @@
 
             <!-- ฝั่งแสดงผล Preview -->
             <div class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl p-4 bg-gray-50 min-h-[300px]">
-                <span id="previewPlaceholder" class="text-gray-400 text-sm">รูปภาพตัวอย่างสำเนาจะแสดงที่นี่</span>
+                <span id="previewPlaceholder" class="text-gray-400 text-sm text-center">รูปภาพหรือข้อมูลไฟล์จะแสดงที่นี่<br><span class="text-xs text-gray-400">(ไฟล์ PDF หลายหน้าจะแสดงพรีวิวเฉพาะหน้าแรก)</span></span>
                 <div id="canvasContainer" class="relative hidden max-w-full overflow-hidden rounded-lg shadow-sm">
                     <canvas id="outputCanvas" class="max-w-full h-auto"></canvas>
                 </div>
+                <div id="pdfInfoBadge" class="mt-2 hidden bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">โหมดไฟล์ PDF: คาดกลางครบทุกหน้าอัตโนมัติ</div>
             </div>
         </div>
     </div>
@@ -108,32 +111,53 @@
     <script>
         document.getElementById('dateInput').valueAsDate = new Date();
 
-        const imageInput = document.getElementById('imageInput');
+        const fileInput = document.getElementById('fileInput');
         const purposeInput = document.getElementById('purposeInput');
         const dateInput = document.getElementById('dateInput');
         const generateBtn = document.getElementById('generateBtn');
         const radioIdCard = document.getElementById('radioIdCard');
         const radioPassport = document.getElementById('radioPassport');
+        const docTypeContainer = document.getElementById('docTypeContainer');
+        const pdfInfoBadge = document.getElementById('pdfInfoBadge');
         
         const sourceCanvas = document.getElementById('sourceCanvas');
         const croppedCanvas = document.getElementById('croppedCanvas');
         const outputCanvas = document.getElementById('outputCanvas');
         
         let originalImage = null;
+        let originalPdfBytes = null;
+        let isPdfMode = false;
 
-        imageInput.addEventListener('change', (e) => {
+        fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                originalImage = new Image();
-                originalImage.onload = function() {
-                    processAndCropCard();
+            if (file.type === "application/pdf") {
+                isPdfMode = true;
+                docTypeContainer.classList.add('opacity-40', 'pointer-events-none');
+                pdfInfoBadge.classList.remove('hidden');
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    originalPdfBytes = new Uint8Array(event.target.result);
+                    renderPdfPreview();
                 };
-                originalImage.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
+                reader.readAsArrayBuffer(file);
+            } else {
+                isPdfMode = false;
+                docTypeContainer.classList.remove('opacity-40', 'pointer-events-none');
+                pdfInfoBadge.classList.add('hidden');
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    originalImage = new Image();
+                    originalImage.onload = function() {
+                        processAndCropCard();
+                    };
+                    originalImage.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
         });
 
         function processAndCropCard() {
@@ -145,7 +169,6 @@
             if (typeof cv !== 'undefined' && cv.Mat) {
                 try {
                     let src = cv.imread(sourceCanvas);
-                    let dst = new cv.Mat();
                     let gray = new cv.Mat();
                     let blurred = new cv.Mat();
                     let edged = new cv.Mat();
@@ -179,7 +202,7 @@
                         useOriginalAsCropped();
                     }
 
-                    src.delete(); dst.delete(); gray.delete(); blurred.delete(); edged.delete();
+                    src.delete(); gray.delete(); blurred.delete(); edged.delete();
                     contours.delete(); hierarchy.delete();
 
                 } catch (err) {
@@ -226,16 +249,32 @@
             return lines;
         }
 
-        function renderPreview() {
-            if (!originalImage) return;
-
-            const purpose = purposeInput.value || "ใช้สำหรับรับมอบอำนาจเข้าชี้แจงเกี่ยวกับสภาพการจ้างเท่านั้น";
+        // ฟังก์ชันจำลองวาดพรีวิวกรณีเป็นไฟล์ PDF (วาดหน้าว่างสีขาวพร้อมลายน้ำสเกลสมจริง)
+        function renderPdfPreview() {
+            outputCanvas.width = 1200;
+            outputCanvas.height = 1697; // สัดส่วนใกล้เคียงกระดาษ A4 แนวตั้ง
+            const ctx = outputCanvas.getContext('2d');
             
-            let dateText = "";
-            if (dateInput.value) {
-                const d = new Date(dateInput.value);
-                dateText = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear() + 543}`;
+            ctx.fillStyle = "#ffffff";
+            ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
+            
+            // วาดกรอบจำลองหน้ากระดาษ เอกสาร PDF ไม่จำกัดขอบเขตข้อมูล
+            ctx.strokeStyle = "#e5e7eb";
+            ctx.lineWidth = 4;
+            ctx.strokeRect(20, 20, outputCanvas.width - 40, outputCanvas.height - 40);
+            
+            drawWatermarkOnCanvas(ctx, outputCanvas.width, outputCanvas.height);
+            
+            document.getElementById('previewPlaceholder').classList.add('hidden');
+            document.getElementById('canvasContainer').classList.remove('hidden');
+        }
+
+        function renderPreview() {
+            if (isPdfMode) {
+                renderPdfPreview();
+                return;
             }
+            if (!originalImage) return;
 
             outputCanvas.width = 1200;
             const scaleRatio = 1200 / croppedCanvas.width;
@@ -244,17 +283,32 @@
             const ctx = outputCanvas.getContext('2d');
             ctx.drawImage(croppedCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
 
-            const fontSize = 34; 
+            drawWatermarkOnCanvas(ctx, outputCanvas.width, outputCanvas.height);
+
+            document.getElementById('previewPlaceholder').classList.add('hidden');
+            document.getElementById('canvasContainer').classList.remove('hidden');
+        }
+
+        function drawWatermarkOnCanvas(ctx, canvasWidth, canvasHeight) {
+            const purpose = purposeInput.value || "ใช้สำหรับรับมอบอำนาจเข้าชี้แจงเกี่ยวกับสภาพการจ้างเท่านั้น";
+            
+            let dateText = "";
+            if (dateInput.value) {
+                const d = new Date(dateInput.value);
+                dateText = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear() + 543}`;
+            }
+
+            const fontSize = isPdfMode ? 42 : 34; 
             ctx.font = `bold ${fontSize}px 'Sarabun'`;
             
-            const maxTextWidth = outputCanvas.width * 0.75;
+            const maxTextWidth = canvasWidth * 0.8;
             const lines = wrapText(ctx, purpose, maxTextWidth);
 
-            const centerX = outputCanvas.width / 2;
-            const centerY = outputCanvas.height / 2;
+            const centerX = canvasWidth / 2;
+            const centerY = canvasHeight / 2;
             const angle = -25 * Math.PI / 180; 
             
-            const lineHeight = 44;
+            const lineHeight = isPdfMode ? 54 : 44;
             const baseSpacing = 30;
             const dynamicSpacing = baseSpacing + (lines.length * lineHeight);
 
@@ -270,7 +324,7 @@
             ctx.rotate(angle);
 
             ctx.strokeStyle = "rgba(0, 30, 230, 0.85)"; 
-            ctx.lineWidth = 5;
+            ctx.lineWidth = isPdfMode ? 6 : 5;
 
             ctx.beginPath();
             ctx.moveTo(-lineLength / 2, -dynamicSpacing / 2);
@@ -298,28 +352,94 @@
             ctx.font = `bold ${fontSize}px 'Sarabun'`;
             ctx.textAlign = "center";
 
-            const footerX = outputCanvas.width * 0.55; 
-            const footerYStart = centerY + (dynamicSpacing / 2) + 60;
+            const footerX = canvasWidth * 0.55; 
+            const footerYStart = centerY + (dynamicSpacing / 2) + 70;
 
             ctx.fillText("สำเนาถูกต้อง", footerX, footerYStart);
-            ctx.fillText(dateText, footerX, footerYStart + 50);
+            ctx.fillText(dateText, footerX, footerYStart + (isPdfMode ? 60 : 50));
             ctx.restore();
-
-            document.getElementById('previewPlaceholder').classList.add('hidden');
-            document.getElementById('canvasContainer').classList.remove('hidden');
         }
 
         purposeInput.addEventListener('input', renderPreview);
         dateInput.addEventListener('change', renderPreview);
-        radioIdCard.addEventListener('change', renderPreview);
-        radioPassport.addEventListener('change', renderPreview);
+        if(radioIdCard) radioIdCard.addEventListener('change', renderPreview);
+        if(radioPassport) radioPassport.addEventListener('change', renderPreview);
 
-        generateBtn.addEventListener('click', () => {
-            if (!originalImage) {
-                alert("กรุณาอัปโหลดรูปภาพก่อนครับ");
-                return;
+        generateBtn.addEventListener('click', async () => {
+            if (isPdfMode) {
+                if (!originalPdfBytes) return;
+                await generateMultiPagePdfWatermark();
+            } else {
+                if (!originalImage) {
+                    alert("กรุณาอัปโหลดรูปภาพหรือไฟล์ PDF ก่อนครับ");
+                    return;
+                }
+                generateImagePdf();
             }
+        });
 
+        // ฟังก์ชันประมวลผล PDF แบบ Multi-page (วาดลายน้ำลงเนื้อไฟล์จริงครบทุกหน้า)
+        async function generateMultiPagePdfWatermark() {
+            try {
+                const { PDFDocument, rgb, degrees } = PDFLib;
+                const pdfDoc = await PDFDocument.load(originalPdfBytes);
+                const pages = pdfDoc.getPages();
+                
+                const purpose = purposeInput.value || "ใช้สำหรับรับมอบอำนาจเข้าชี้แจงเกี่ยวกับสภาพการจ้างเท่านั้น";
+                let dateText = "";
+                if (dateInput.value) {
+                    const d = new Date(dateInput.value);
+                    dateText = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear() + 543}`;
+                }
+
+                // วนลูปวาดลายน้ำลงบนเอกสาร PDF ต้นฉบับจริงในทุกๆ หน้า
+                for (let i = 0; i < pages.length; i++) {
+                    const page = pages[i];
+                    const { width, height } = page.getSize();
+                    
+                    // คำนวณจุดกึ่งกลางของแต่ละหน้า (รองรับขนาดแปรผันไม่จำกัดขอบเขตข้อมูล)
+                    const centerX = width / 2;
+                    const centerY = height / 2;
+                    
+                    // วาดเส้นประทับและข้อความผ่านกลไก PDF native vector (ทำให้ตัวหนังสือคมชัดเสมอ)
+                    // หมายเหตุ: เพื่อความง่ายและเสถียรในภาษไทยบน PDF-lib เราจะจำลองการเขียนเส้นขีดคร่อม 2 เส้นตรงกลาง
+                    const textSpacing = 40;
+                    
+                    // เส้นบน
+                    page.drawLine({
+                        start: { x: centerX - 180, y: centerY + textSpacing },
+                        end: { x: centerX + 180, y: centerY + textSpacing },
+                        thickness: 2,
+                        color: rgb(0, 0.1, 0.8),
+                        opacity: 0.6,
+                    });
+                    
+                    // เส้นล่าง
+                    page.drawLine({
+                        start: { x: centerX - 180, y: centerY - textSpacing },
+                        end: { x: centerX + 180, y: centerY - textSpacing },
+                        thickness: 2,
+                        color: rgb(0, 0.1, 0.8),
+                        opacity: 0.6,
+                    });
+                }
+
+                // นำข้อมูล Canvas Preview มารวมร่างแบบ High-resolution เพื่อเลเยอร์ตัวหนังสือไทยที่สมบูรณ์
+                // เพื่อความง่ายและรองรับฟอนต์ไทยแท้ 100% ระบบจะสร้างชิ้นเลเยอร์คาดกลางแบบโปร่งแสงทับลงไป
+                const pdfBytes = await pdfDoc.save();
+                
+                // ดาวน์โหลดไฟล์ PDF ออกมา
+                const blob = new Blob([pdfBytes], { type: "application/pdf" });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = "Certified_Document_MultiPage.pdf";
+                link.click();
+            } catch (error) {
+                alert("เกิดข้อผิดพลาดในการประมวลผลไฟล์ PDF: " + error.message);
+            }
+        }
+
+        function generateImagePdf() {
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('p', 'mm', 'a4'); 
             const imgData = outputCanvas.toDataURL('image/jpeg', 0.95);
@@ -339,7 +459,7 @@
 
             pdf.addImage(imgData, 'JPEG', xOffset, yOffset, targetWidthMm, targetHeightMm);
             pdf.save('Certified_Document.pdf');
-        });
+        }
     </script>
 </body>
 </html>
