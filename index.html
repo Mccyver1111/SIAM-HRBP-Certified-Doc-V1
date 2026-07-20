@@ -6,33 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบจัดทำสำเนาเอกสารปลอดภัย (PDPA Compliance)</title>
 
-    <!-- ========================================== -->
-    <!-- 1. ส่วนของ Icon สำหรับแสดงบน Browser & คอมพิวเตอร์ -->
-    <!-- ========================================== -->
     <link rel="shortcut icon" href="icon-siam-hrbp.png" type="image/png">
     <link rel="icon" href="icon-siam-hrbp.png" type="image/png">
-    
-    <!-- สำหรับอุปกรณ์ iOS / iPhone -->
     <link rel="apple-touch-icon" href="icon-siam-hrbp.png">
 
-    <!-- ========================================== -->
-    <!-- 2. ส่วนของ Meta Tags สำหรับเวลาแชร์ลิงก์ -->
-    <!-- ========================================== -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="ระบบสร้างสำเนาเอกสารปลอดภัย - SIAM-HRBP">
     <meta property="og:description" content="ระบบจัดทำสำเนาเอกสารลบลายน้ำอัตโนมัติ ถูกต้องตามมาตราฐานขนาดจริง 100% (PDPA Compliant)">
     <meta property="og:image" content="icon-siam-hrbp.png">
-    <meta property="og:image:width" content="256">
-    <meta property="og:image:height" content="256">
 
-    <!-- Tailwind CSS สำหรับตกแต่ง UI -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- OpenCV.js สำหรับระบบวิเคราะห์และ Crop บัตรอัตโนมัติ -->
     <script async src="https://docs.opencv.org/4.x/opencv.js" type="text/javascript" id="opencv-js"></script>
-    <!-- jsPDF สำหรับการแปลงรูปเป็น PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- pdf-lib สำหรับการจัดการและเขียนลายน้ำลงบน PDF ตรงๆ (หลายหน้า) -->
-    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- เรียกใช้ pdf-js สำหรับการ Render หน้า PDF เพื่อถอดมาแสตมป์ลายน้ำไทยแท้ -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
@@ -42,44 +29,29 @@
 <body class="bg-gray-50 min-h-screen flex flex-col justify-between">
 
     <div class="container mx-auto max-w-4xl p-4 md:p-8">
-        <!-- Header -->
         <header class="text-center mb-8">
             <h1 class="text-2xl md:text-3xl font-bold text-blue-800 mb-2">ระบบสร้างสำเนาเอกสารปลอดภัย</h1>
             <p class="text-sm text-green-600 font-semibold flex justify-center items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-                PDPA Compliant: ทำงานในเครื่อง 100% รองรับไฟล์รูปภาพ และ PDF หลายหน้า
+                PDPA Compliant: ทำงานในเครื่อง 100% ปรับอัตราส่วนภาพไม่ให้บิดเบี้ยว และรองรับ PDF หลายหน้า
             </p>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <!-- ฝั่งควบคุมและกรอกข้อมูล -->
+            <!-- ฝั่งควบคุมข้อมูล -->
             <div class="space-y-6">
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">1. อัปโหลดเอกสาร (รูปภาพ หรือ ไฟล์ PDF)</label>
                     <input type="file" id="fileInput" accept="image/*,application/pdf" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
                 </div>
 
-                <div id="docTypeContainer">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">2. ประเภทเอกสาร (เฉพาะการอัปโหลดรูปภาพ)</label>
-                    <div class="flex gap-4">
-                        <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                            <input type="radio" name="docType" value="idcard" checked id="radioIdCard" class="h-4 w-4 text-blue-600 focus:ring-blue-500">
-                            บัตรประชาชน (8.6 x 5.4 ซม.)
-                        </label>
-                        <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                            <input type="radio" name="docType" value="passport" id="radioPassport" class="h-4 w-4 text-blue-600 focus:ring-blue-500">
-                            พาสปอร์ต (12.5 x 8.5 ซม.)
-                        </label>
-                    </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">2. วัตถุประสงค์การใช้งาน</label>
+                    <input type="text" id="purposeInput" value="ใช้สำหรับรับมอบอำนาจเข้าชี้แจงเกี่ยวกับสภาพการจ้างเท่านั้น" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                 </div>
 
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">3. วัตถุประสงค์การใช้งาน</label>
-                    <input type="text" id="purposeInput" placeholder="ใช้สำหรับรับมอบอำนาจเข้าชี้แจงเกี่ยวกับสภาพการจ้างเท่านั้น" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">4. วันที่ใช้เอกสาร</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">3. วันที่ใช้เอกสาร</label>
                     <input type="date" id="dateInput" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                 </div>
 
@@ -90,69 +62,68 @@
             </div>
 
             <!-- ฝั่งแสดงผล Preview -->
-            <div class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl p-4 bg-gray-50 min-h-[300px]">
-                <span id="previewPlaceholder" class="text-gray-400 text-sm text-center">รูปภาพหรือข้อมูลไฟล์จะแสดงที่นี่<br><span class="text-xs text-gray-400">(ไฟล์ PDF หลายหน้าจะแสดงพรีวิวเฉพาะหน้าแรก)</span></span>
+            <div class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl p-4 bg-gray-50 min-h-[350px]">
+                <span id="previewPlaceholder" class="text-gray-400 text-sm text-center">รูปภาพหรือข้อมูลไฟล์จะแสดงที่นี่<br><span class="text-xs text-gray-400">(ไฟล์ PDF จะแสดงพรีวิวตัวอย่างหน้าแรกที่นี่)</span></span>
                 <div id="canvasContainer" class="relative hidden max-w-full overflow-hidden rounded-lg shadow-sm">
                     <canvas id="outputCanvas" class="max-w-full h-auto"></canvas>
                 </div>
-                <div id="pdfInfoBadge" class="mt-2 hidden bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">โหมดไฟล์ PDF: คาดกลางครบทุกหน้าอัตโนมัติ</div>
+                <div id="pdfInfoBadge" class="mt-2 hidden bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">โหมดเอกสาร PDF: ส่งออกตรงตามที่พรีวิวทุกหน้า</div>
             </div>
         </div>
     </div>
 
     <canvas id="sourceCanvas" class="hidden"></canvas>
     <canvas id="croppedCanvas" class="hidden"></canvas>
+    <!-- Canvas ซ่อนไว้ใช้สำหรับประมวลผลเบื้องหลังของแต่ละหน้า PDF -->
+    <canvas id="hiddenWorkerCanvas" class="hidden"></canvas>
 
-    <!-- Footer -->
     <footer class="text-center py-4 text-xs text-gray-400 border-t border-gray-100 mt-8 bg-white w-full">
         @2024 Siam-HRBP Soft
     </footer>
 
     <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
         document.getElementById('dateInput').valueAsDate = new Date();
 
         const fileInput = document.getElementById('fileInput');
         const purposeInput = document.getElementById('purposeInput');
         const dateInput = document.getElementById('dateInput');
         const generateBtn = document.getElementById('generateBtn');
-        const radioIdCard = document.getElementById('radioIdCard');
-        const radioPassport = document.getElementById('radioPassport');
-        const docTypeContainer = document.getElementById('docTypeContainer');
         const pdfInfoBadge = document.getElementById('pdfInfoBadge');
         
         const sourceCanvas = document.getElementById('sourceCanvas');
         const croppedCanvas = document.getElementById('croppedCanvas');
         const outputCanvas = document.getElementById('outputCanvas');
+        const hiddenWorkerCanvas = document.getElementById('hiddenWorkerCanvas');
         
         let originalImage = null;
-        let originalPdfBytes = null;
+        let pdfDocInstance = null;
         let isPdfMode = false;
 
-        fileInput.addEventListener('change', (e) => {
+        fileInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
             if (file.type === "application/pdf") {
                 isPdfMode = true;
-                docTypeContainer.classList.add('opacity-40', 'pointer-events-none');
                 pdfInfoBadge.classList.remove('hidden');
                 
                 const reader = new FileReader();
-                reader.onload = function(event) {
-                    originalPdfBytes = new Uint8Array(event.target.result);
-                    renderPdfPreview();
+                reader.onload = async function(event) {
+                    const typedarray = new Uint8Array(event.target.result);
+                    pdfDocInstance = await pdfjsLib.getDocument(typedarray).promise;
+                    renderPdfPageToPreview(1); // พรีวิวหน้าแรกให้ผู้ใช้เห็น
                 };
                 reader.readAsArrayBuffer(file);
             } else {
                 isPdfMode = false;
-                docTypeContainer.classList.remove('opacity-40', 'pointer-events-none');
                 pdfInfoBadge.classList.add('hidden');
                 
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     originalImage = new Image();
                     originalImage.onload = function() {
-                        processAndCropCard();
+                        processImageAutoCrop();
                     };
                     originalImage.src = event.target.result;
                 };
@@ -160,7 +131,32 @@
             }
         });
 
-        function processAndCropCard() {
+        // ฟังก์ชันอ่านและวาดตัวอย่างไฟล์ PDF ลง Canvas หน้าจอ
+        async function renderPdfPageToPreview(pageNumber) {
+            if (!pdfDocInstance) return;
+            const page = await pdfDocInstance.getPage(pageNumber);
+            
+            // ใช้ Scale สูงเพื่อให้ตัวอักษรคมชัด
+            const viewport = page.getViewport({ scale: 2.0 });
+            outputCanvas.width = viewport.width;
+            outputCanvas.height = viewport.height;
+            
+            const ctx = outputCanvas.getContext('2d');
+            const renderContext = {
+                canvasContext: ctx,
+                viewport: viewport
+            };
+            
+            await page.render(renderContext).promise;
+            
+            // วาดลายน้ำทับซ้อนลงไปใน Preview ทันที
+            drawWatermarkLayer(ctx, outputCanvas.width, outputCanvas.height);
+            
+            document.getElementById('previewPlaceholder').classList.add('hidden');
+            document.getElementById('canvasContainer').classList.remove('hidden');
+        }
+
+        function processImageAutoCrop() {
             const srcCtx = sourceCanvas.getContext('2d');
             sourceCanvas.width = originalImage.width;
             sourceCanvas.height = originalImage.height;
@@ -199,34 +195,42 @@
                         const cropCtx = croppedCanvas.getContext('2d');
                         cropCtx.drawImage(sourceCanvas, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
                     } else {
-                        useOriginalAsCropped();
+                        useOriginalImage();
                     }
 
                     src.delete(); gray.delete(); blurred.delete(); edged.delete();
                     contours.delete(); hierarchy.delete();
-
                 } catch (err) {
-                    useOriginalAsCropped();
+                    useOriginalImage();
                 }
             } else {
-                useOriginalAsCropped();
+                useOriginalImage();
             }
-
-            const aspectRatio = croppedCanvas.width / croppedCanvas.height;
-            if (aspectRatio < 1.25) { 
-                radioPassport.checked = true;
-            } else {
-                radioIdCard.checked = true;
-            }
-
-            renderPreview();
+            renderImagePreview();
         }
 
-        function useOriginalAsCropped() {
+        function useOriginalImage() {
             croppedCanvas.width = sourceCanvas.width;
             croppedCanvas.height = sourceCanvas.height;
             const cropCtx = croppedCanvas.getContext('2d');
             cropCtx.drawImage(sourceCanvas, 0, 0);
+        }
+
+        function renderImagePreview() {
+            if (!originalImage) return;
+            
+            // ตั้งความละเอียดในการจัดการภาพที่ 1600px เพื่อความคมชัดสูง
+            outputCanvas.width = 1600;
+            const scaleRatio = 1600 / croppedCanvas.width;
+            outputCanvas.height = croppedCanvas.height * scaleRatio;
+            
+            const ctx = outputCanvas.getContext('2d');
+            ctx.drawImage(croppedCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
+
+            drawWatermarkLayer(ctx, outputCanvas.width, outputCanvas.height);
+
+            document.getElementById('previewPlaceholder').classList.add('hidden');
+            document.getElementById('canvasContainer').classList.remove('hidden');
         }
 
         function wrapText(ctx, text, maxWidth) {
@@ -237,8 +241,7 @@
             for (let n = 0; n < words.length; n++) {
                 let testLine = currentLine + words[n];
                 let metrics = ctx.measureText(testLine);
-                let testWidth = metrics.width;
-                if (testWidth > maxWidth && n > 0) {
+                if (metrics.width > maxWidth && n > 0) {
                     lines.push(currentLine);
                     currentLine = words[n];
                 } else {
@@ -249,67 +252,28 @@
             return lines;
         }
 
-        // ฟังก์ชันจำลองวาดพรีวิวกรณีเป็นไฟล์ PDF (วาดหน้าว่างสีขาวพร้อมลายน้ำสเกลสมจริง)
-        function renderPdfPreview() {
-            outputCanvas.width = 1200;
-            outputCanvas.height = 1697; // สัดส่วนใกล้เคียงกระดาษ A4 แนวตั้ง
-            const ctx = outputCanvas.getContext('2d');
-            
-            ctx.fillStyle = "#ffffff";
-            ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
-            
-            // วาดกรอบจำลองหน้ากระดาษ เอกสาร PDF ไม่จำกัดขอบเขตข้อมูล
-            ctx.strokeStyle = "#e5e7eb";
-            ctx.lineWidth = 4;
-            ctx.strokeRect(20, 20, outputCanvas.width - 40, outputCanvas.height - 40);
-            
-            drawWatermarkOnCanvas(ctx, outputCanvas.width, outputCanvas.height);
-            
-            document.getElementById('previewPlaceholder').classList.add('hidden');
-            document.getElementById('canvasContainer').classList.remove('hidden');
-        }
-
-        function renderPreview() {
-            if (isPdfMode) {
-                renderPdfPreview();
-                return;
-            }
-            if (!originalImage) return;
-
-            outputCanvas.width = 1200;
-            const scaleRatio = 1200 / croppedCanvas.width;
-            outputCanvas.height = croppedCanvas.height * scaleRatio;
-            
-            const ctx = outputCanvas.getContext('2d');
-            ctx.drawImage(croppedCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
-
-            drawWatermarkOnCanvas(ctx, outputCanvas.width, outputCanvas.height);
-
-            document.getElementById('previewPlaceholder').classList.add('hidden');
-            document.getElementById('canvasContainer').classList.remove('hidden');
-        }
-
-        function drawWatermarkOnCanvas(ctx, canvasWidth, canvasHeight) {
+        // ฟังก์ชันวาดลายน้ำภาษาไทย (ใช้ตัวแปรคำนวณสเกลแบบไดนามิกตามขนาดภาพจริง)
+        function drawWatermarkLayer(ctx, canvasWidth, canvasHeight) {
             const purpose = purposeInput.value || "ใช้สำหรับรับมอบอำนาจเข้าชี้แจงเกี่ยวกับสภาพการจ้างเท่านั้น";
-            
             let dateText = "";
             if (dateInput.value) {
                 const d = new Date(dateInput.value);
                 dateText = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear() + 543}`;
             }
 
-            const fontSize = isPdfMode ? 42 : 34; 
+            // คำนวณขนาดตัวอักษรให้เหมาะสมตามมิติความกว้างของไฟล์
+            const fontSize = Math.max(24, Math.round(canvasWidth * 0.032));
             ctx.font = `bold ${fontSize}px 'Sarabun'`;
             
-            const maxTextWidth = canvasWidth * 0.8;
+            const maxTextWidth = canvasWidth * 0.85;
             const lines = wrapText(ctx, purpose, maxTextWidth);
 
             const centerX = canvasWidth / 2;
             const centerY = canvasHeight / 2;
-            const angle = -25 * Math.PI / 180; 
+            const angle = -22 * Math.PI / 180; 
             
-            const lineHeight = isPdfMode ? 54 : 44;
-            const baseSpacing = 30;
+            const lineHeight = fontSize * 1.25;
+            const baseSpacing = fontSize * 0.8;
             const dynamicSpacing = baseSpacing + (lines.length * lineHeight);
 
             let maxLineLen = 0;
@@ -317,14 +281,15 @@
                 const w = ctx.measureText(line).width;
                 if (w > maxLineLen) maxLineLen = w;
             });
-            const lineLength = maxLineLen + 60; 
+            const lineLength = maxLineLen + 60;
 
             ctx.save();
             ctx.translate(centerX, centerY);
             ctx.rotate(angle);
 
-            ctx.strokeStyle = "rgba(0, 30, 230, 0.85)"; 
-            ctx.lineWidth = isPdfMode ? 6 : 5;
+            // วาดเส้นคู่ขนานคาดกลาง
+            ctx.strokeStyle = "rgba(0, 40, 220, 0.8)"; 
+            ctx.lineWidth = Math.max(3, Math.round(canvasWidth * 0.004));
 
             ctx.beginPath();
             ctx.moveTo(-lineLength / 2, -dynamicSpacing / 2);
@@ -336,7 +301,8 @@
             ctx.lineTo(lineLength / 2, dynamicSpacing / 2);
             ctx.stroke();
 
-            ctx.fillStyle = "rgba(0, 20, 200, 0.95)";
+            // พิมพ์ข้อความวัตถุประสงค์
+            ctx.fillStyle = "rgba(0, 30, 200, 0.9)";
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
 
@@ -346,119 +312,122 @@
             }
             ctx.restore();
 
+            // พิมพ์คำว่าสำเนาถูกต้องและวันที่เยื้องมาทางมุมขวาล่างของตัวบล็อกข้อความ
             ctx.save();
-            ctx.fillStyle = "rgba(0, 20, 200, 0.95)";
-            ctx.textBaseline = "alphabetic";
+            ctx.fillStyle = "rgba(0, 30, 200, 0.9)";
             ctx.font = `bold ${fontSize}px 'Sarabun'`;
             ctx.textAlign = "center";
-
-            const footerX = canvasWidth * 0.55; 
-            const footerYStart = centerY + (dynamicSpacing / 2) + 70;
+            
+            // คำนวณให้สัมพันธ์กับทิศทางมุมเอียง
+            const footerX = canvasWidth * 0.53;
+            const footerYStart = centerY + (dynamicSpacing / 2) + (fontSize * 1.5);
 
             ctx.fillText("สำเนาถูกต้อง", footerX, footerYStart);
-            ctx.fillText(dateText, footerX, footerYStart + (isPdfMode ? 60 : 50));
+            ctx.fillText(dateText, footerX, footerYStart + (fontSize * 1.25));
             ctx.restore();
         }
 
-        purposeInput.addEventListener('input', renderPreview);
-        dateInput.addEventListener('change', renderPreview);
-        if(radioIdCard) radioIdCard.addEventListener('change', renderPreview);
-        if(radioPassport) radioPassport.addEventListener('change', renderPreview);
+        // รีเฟรชหน้าพรีวิวอัตโนมัติเมื่อเปลี่ยนข้อความหรือวันที่
+        purposeInput.addEventListener('input', () => {
+            if (isPdfMode) renderPdfPageToPreview(1);
+            else renderImagePreview();
+        });
+        
+        dateInput.addEventListener('change', () => {
+            if (isPdfMode) renderPdfPageToPreview(1);
+            else renderImagePreview();
+        });
 
         generateBtn.addEventListener('click', async () => {
             if (isPdfMode) {
-                if (!originalPdfBytes) return;
-                await generateMultiPagePdfWatermark();
+                if (!pdfDocInstance) return;
+                await exportMultiPagePdf();
             } else {
                 if (!originalImage) {
-                    alert("กรุณาอัปโหลดรูปภาพหรือไฟล์ PDF ก่อนครับ");
+                    alert("กรุณาอัปโหลดรูปภาพ หรือไฟล์ PDF ก่อนครับ");
                     return;
                 }
-                generateImagePdf();
+                exportImageToPdf();
             }
         });
 
-        // ฟังก์ชันประมวลผล PDF แบบ Multi-page (วาดลายน้ำลงเนื้อไฟล์จริงครบทุกหน้า)
-        async function generateMultiPagePdfWatermark() {
-            try {
-                const { PDFDocument, rgb, degrees } = PDFLib;
-                const pdfDoc = await PDFDocument.load(originalPdfBytes);
-                const pages = pdfDoc.getPages();
-                
-                const purpose = purposeInput.value || "ใช้สำหรับรับมอบอำนาจเข้าชี้แจงเกี่ยวกับสภาพการจ้างเท่านั้น";
-                let dateText = "";
-                if (dateInput.value) {
-                    const d = new Date(dateInput.value);
-                    dateText = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear() + 543}`;
-                }
-
-                // วนลูปวาดลายน้ำลงบนเอกสาร PDF ต้นฉบับจริงในทุกๆ หน้า
-                for (let i = 0; i < pages.length; i++) {
-                    const page = pages[i];
-                    const { width, height } = page.getSize();
-                    
-                    // คำนวณจุดกึ่งกลางของแต่ละหน้า (รองรับขนาดแปรผันไม่จำกัดขอบเขตข้อมูล)
-                    const centerX = width / 2;
-                    const centerY = height / 2;
-                    
-                    // วาดเส้นประทับและข้อความผ่านกลไก PDF native vector (ทำให้ตัวหนังสือคมชัดเสมอ)
-                    // หมายเหตุ: เพื่อความง่ายและเสถียรในภาษไทยบน PDF-lib เราจะจำลองการเขียนเส้นขีดคร่อม 2 เส้นตรงกลาง
-                    const textSpacing = 40;
-                    
-                    // เส้นบน
-                    page.drawLine({
-                        start: { x: centerX - 180, y: centerY + textSpacing },
-                        end: { x: centerX + 180, y: centerY + textSpacing },
-                        thickness: 2,
-                        color: rgb(0, 0.1, 0.8),
-                        opacity: 0.6,
-                    });
-                    
-                    // เส้นล่าง
-                    page.drawLine({
-                        start: { x: centerX - 180, y: centerY - textSpacing },
-                        end: { x: centerX + 180, y: centerY - textSpacing },
-                        thickness: 2,
-                        color: rgb(0, 0.1, 0.8),
-                        opacity: 0.6,
-                    });
-                }
-
-                // นำข้อมูล Canvas Preview มารวมร่างแบบ High-resolution เพื่อเลเยอร์ตัวหนังสือไทยที่สมบูรณ์
-                // เพื่อความง่ายและรองรับฟอนต์ไทยแท้ 100% ระบบจะสร้างชิ้นเลเยอร์คาดกลางแบบโปร่งแสงทับลงไป
-                const pdfBytes = await pdfDoc.save();
-                
-                // ดาวน์โหลดไฟล์ PDF ออกมา
-                const blob = new Blob([pdfBytes], { type: "application/pdf" });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = "Certified_Document_MultiPage.pdf";
-                link.click();
-            } catch (error) {
-                alert("เกิดข้อผิดพลาดในการประมวลผลไฟล์ PDF: " + error.message);
+        // ฟังก์ชันส่งออกภาพ (รักษาสัดส่วนจริง 100% ไม่บีบอัดความสูงพาสปอร์ต)
+        function exportImageToPdf() {
+            const { jsPDF } = window.jspdf;
+            
+            // เช็คว่ารูปดั้งเดิมมาเป็นแนวตั้งหรือแนวนอน เพื่อจัดวางทิศทางกระดาษ PDF A4
+            const orientation = outputCanvas.width >= outputCanvas.height ? 'l' : 'p';
+            const pdf = new jsPDF(orientation, 'mm', 'a4');
+            
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            
+            // คำนวณสเกลภาพให้พอดีกระดาษ A4 โดยอิงอัตราส่วนดั้งเดิม (Aspect Ratio) สูงไม่เพี้ยนแน่นอน
+            const canvasRatio = outputCanvas.width / outputCanvas.height;
+            
+            let printWidth = pageWidth - 20; // เว้นขอบซ้ายขวาฝั่งละ 10 มม.
+            let printHeight = printWidth / canvasRatio;
+            
+            // หากความสูงคำนวณแล้วเกินหน้ากระดาษ A4 ให้ยึดความสูงเป็นหลักแทน
+            if (printHeight > (pageHeight - 20)) {
+                printHeight = pageHeight - 20;
+                printWidth = printHeight * canvasRatio;
             }
+            
+            const xOffset = (pageWidth - printWidth) / 2;
+            const yOffset = (pageHeight - printHeight) / 2;
+            
+            const imgData = outputCanvas.toDataURL('image/jpeg', 0.95);
+            pdf.addImage(imgData, 'JPEG', xOffset, yOffset, printWidth, printHeight);
+            pdf.save('Certified_Document.pdf');
         }
 
-        function generateImagePdf() {
+        // ฟังก์ชันส่งออก PDF หลายหน้า (ดึงภาพพรีวิวทุกหน้ามาจัดพิมพ์ใหม่ทำให้ข้อความลายน้ำไทยตรงกับหน้าจอ 100%)
+        async function exportMultiPagePdf() {
             const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'mm', 'a4'); 
-            const imgData = outputCanvas.toDataURL('image/jpeg', 0.95);
+            let finalPdf = null;
             
-            const isPassport = document.querySelector('input[name="docType"]:checked').value === "passport";
+            const totalPages = pdfDocInstance.numPages;
+            const workerCtx = hiddenWorkerCanvas.getContext('2d');
             
-            let targetWidthMm = 86;   
-            let targetHeightMm = 54;  
-
-            if (isPassport) {
-                targetWidthMm = 125;  
-                targetHeightMm = 85;  
+            for (let i = 1; i <= totalPages; i++) {
+                const page = await pdfDocInstance.getPage(i);
+                
+                // ใช้ค่า Scale 2.0 เพื่อพิมพ์ออกมาแล้วคมชัด อ่านตัวหนังสือเล็กๆ ในเอกสารหลักได้สบาย
+                const viewport = page.getViewport({ scale: 2.0 });
+                hiddenWorkerCanvas.width = viewport.width;
+                hiddenWorkerCanvas.height = viewport.height;
+                
+                const renderContext = {
+                    canvasContext: workerCtx,
+                    viewport: viewport
+                };
+                
+                await page.render(renderContext).promise;
+                
+                // สแตมป์ลายน้ำขีดคร่อมลงบนหน้าเบื้องหลังนั้นๆ
+                drawWatermarkLayer(workerCtx, hiddenWorkerCanvas.width, hiddenWorkerCanvas.height);
+                
+                const pageOrientation = hiddenWorkerCanvas.width >= hiddenWorkerCanvas.height ? 'l' : 'p';
+                
+                if (i === 1) {
+                    finalPdf = new jsPDF(pageOrientation, 'mm', 'a4');
+                } else {
+                    finalPdf.addPage('a4', pageOrientation);
+                }
+                
+                const pWidth = finalPdf.internal.pageSize.getWidth();
+                const pHeight = finalPdf.internal.pageSize.getHeight();
+                
+                const imgData = hiddenWorkerCanvas.toDataURL('image/jpeg', 0.90);
+                
+                // วางหน้าเอกสารนั้นแบบเต็มเนื้อหากระดาษ A4
+                finalPdf.addImage(imgData, 'JPEG', 0, 0, pWidth, pHeight);
             }
-
-            const xOffset = (210 - targetWidthMm) / 2;
-            const yOffset = (297 - targetHeightMm) / 2;
-
-            pdf.addImage(imgData, 'JPEG', xOffset, yOffset, targetWidthMm, targetHeightMm);
-            pdf.save('Certified_Document.pdf');
+            
+            if (finalPdf) {
+                finalPdf.save('Certified_Document_MultiPage.pdf');
+            }
         }
     </script>
 </body>
