@@ -353,30 +353,71 @@
             }
         });
 
-        function exportImageToPdf() {
-            const { jsPDF } = window.jspdf;
-            const orientation = outputCanvas.width >= outputCanvas.height ? 'l' : 'p';
-            const pdf = new jsPDF(orientation, 'mm', 'a4');
-            
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            const canvasRatio = outputCanvas.width / outputCanvas.height;
-            
-            let printWidth = pageWidth - 20;
-            let printHeight = printWidth / canvasRatio;
-            
-            if (printHeight > (pageHeight - 20)) {
-                printHeight = pageHeight - 20;
-                printWidth = printHeight * canvasRatio;
-            }
-            
-            const xOffset = (pageWidth - printWidth) / 2;
-            const yOffset = (pageHeight - printHeight) / 2;
-            
-            const imgData = outputCanvas.toDataURL('image/jpeg', 0.95);
-            pdf.addImage(imgData, 'JPEG', xOffset, yOffset, printWidth, printHeight);
-            pdf.save('Certified_Document.pdf');
+function exportImageToPdf() {
+    const { jsPDF } = window.jspdf;
+    
+    // 1. ตรวจสอบประเภทเอกสารที่ผู้ใช้เลือกจากหน้าจอ
+    const selectedDocType = document.querySelector('input[name="docType"]:checked')?.value || 'other';
+    
+    // ตั้งค่าเริ่มต้นของ PDF เป็นแนวตั้งตามมาตรฐาน A4
+    let orientation = 'p';
+    
+    // ถ้ารูปภาพอัปโหลดมาเป็นแนวนอนเด่นชัด (และไม่ใช่บัตร/พาสปอร์ตที่บังคับขนาด) ให้ปรับ PDF เป็นแนวนอน
+    if (selectedDocType === 'other' && outputCanvas.width > outputCanvas.height) {
+        orientation = 'l';
+    }
+    
+    const pdf = new jsPDF(orientation, 'mm', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const canvasRatio = outputCanvas.width / outputCanvas.height;
+    
+    let printWidth = 0;
+    let printHeight = 0;
+    
+    // 2. ขบวนการคำนวณขนาดตามประเภทเอกสารจริง (Actual Size Control)
+    if (selectedDocType === 'idcard') {
+        // ขนาดบัตรประชาชนมาตรฐานคือ 86mm x 54mm
+        if (canvasRatio >= 1) { 
+            printWidth = 86;
+            printHeight = 86 / canvasRatio;
+        } else {
+            printHeight = 54;
+            printWidth = 54 * canvasRatio;
         }
+    } 
+    else if (selectedDocType === 'passport') {
+        // ขนาดพาสปอร์ตแบบ 2 หน้าคู่กันเมื่อกางออกคือ 180mm x 125mm
+        if (canvasRatio >= 1) {
+            // ถ้ารูปถ่ายมาเป็นแนวนอน (หน้าคู่กางออก) ให้ล็อกความกว้างไว้ที่ 180mm
+            printWidth = 180;
+            printHeight = 180 / canvasRatio;
+        } else {
+            // ถ้ารูปถ่ายมาเป็นแนวตั้ง ให้ล็อกความสูงไว้ที่ 180mm แทน
+            printHeight = 180;
+            printWidth = 180 * canvasRatio;
+        }
+    } 
+    else {
+        // สำหรับเอกสารทั่วไป (Other) ให้ใช้ Logic ขยายเกือบเต็มหน้า (Fit Page)
+        printWidth = pageWidth - 20;
+        printHeight = printWidth / canvasRatio;
+        
+        if (printHeight > (pageHeight - 20)) {
+            printHeight = pageHeight - 20;
+            printWidth = printHeight * canvasRatio;
+        }
+    }
+    
+    // 3. คำนวณตำแหน่งให้อยู่ "กึ่งกลางหน้ากระดาษ A4" เสมอ ไม่ว่าจะเล็กหรือใหญ่
+    const xOffset = (pageWidth - printWidth) / 2;
+    const yOffset = (pageHeight - printHeight) / 2;
+    
+    // ส่งออกเป็นไฟล์ PDF คุณภาพสูง
+    const imgData = outputCanvas.toDataURL('image/jpeg', 0.95);
+    pdf.addImage(imgData, 'JPEG', xOffset, yOffset, printWidth, printHeight);
+    pdf.save('Certified_Document.pdf');
+}
 
         // คีย์หลักในการแก้ไขปัญหา: ลูปประมวลผลรอเรนเดอร์เนื้อหาทีละหน้าแบบ Sync ครบถ้วน
         async function exportMultiPagePdf() {
