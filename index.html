@@ -32,7 +32,7 @@
             <h1 class="text-2xl md:text-3xl font-bold text-blue-800 mb-2">ระบบสร้างสำเนาเอกสารปลอดภัย</h1>
             <p class="text-sm text-green-600 font-semibold flex justify-center items-center gap-1">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
-                PDPA Compliant: แก้ไขระบบเรนเดอร์ PDF ตัวเนื้อหาหลักและลายน้ำครบถ้วน
+                PDPA Compliant: แก้ไขระบบจัดขนาดพิมพ์จริง (Actual Size) บัตรและพาสปอร์ต
             </p>
         </header>
 
@@ -44,13 +44,32 @@
                     <input type="file" id="fileInput" accept="image/*,application/pdf" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
                 </div>
 
+                <!-- จุดที่เพิ่มเข้ามา: UI เลือกประเภทเอกสารเพื่อกำหนดขนาดจริงลง A4 -->
+                <div id="docTypeContainer">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">2. ประเภทเอกสาร (มีผลต่อขนาดเมื่อพิมพ์จริง)</label>
+                    <div class="flex flex-wrap gap-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <label class="inline-flex items-center text-sm text-gray-700 cursor-pointer">
+                            <input type="radio" name="docType" value="idcard" class="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300 mr-2" checked>
+                            บัตรประชาชน (8.6 x 5.4 ซม.)
+                        </label>
+                        <label class="inline-flex items-center text-sm text-gray-700 cursor-pointer">
+                            <input type="radio" name="docType" value="passport" class="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300 mr-2">
+                            พาสปอร์ต (18 x 12.5 ซม.)
+                        </label>
+                        <label class="inline-flex items-center text-sm text-gray-700 cursor-pointer">
+                            <input type="radio" name="docType" value="other" class="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300 mr-2">
+                            เอกสารทั่วไป (เต็มหน้า A4)
+                        </label>
+                    </div>
+                </div>
+
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">2. วัตถุประสงค์การใช้งาน</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">3. วัตถุประสงค์การใช้งาน</label>
                     <input type="text" id="purposeInput" value="ใช้สำหรับรับมอบอำนาจเข้าชี้แจงเกี่ยวกับสภาพการจ้างเท่านั้น" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                 </div>
 
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">3. วันที่ใช้เอกสาร</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">4. วันที่ใช้เอกสาร</label>
                     <input type="date" id="dateInput" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                 </div>
 
@@ -88,6 +107,7 @@
         const dateInput = document.getElementById('dateInput');
         const generateBtn = document.getElementById('generateBtn');
         const pdfInfoBadge = document.getElementById('pdfInfoBadge');
+        const docTypeContainer = document.getElementById('docTypeContainer');
         
         const sourceCanvas = document.getElementById('sourceCanvas');
         const croppedCanvas = document.getElementById('croppedCanvas');
@@ -105,6 +125,7 @@
             if (file.type === "application/pdf") {
                 isPdfMode = true;
                 pdfInfoBadge.classList.remove('hidden');
+                docTypeContainer.classList.add('hidden'); // ซ่อนตัวเลือกประเภทการจัดหน้าถ้าเป็น PDF ต้นฉบับ
                 
                 const reader = new FileReader();
                 reader.onload = async function(event) {
@@ -116,6 +137,7 @@
             } else {
                 isPdfMode = false;
                 pdfInfoBadge.classList.add('hidden');
+                docTypeContainer.classList.remove('hidden'); // แสดงตัวเลือกประเภทเอกสารเมื่ออัปโหลดรูปภาพ
                 
                 const reader = new FileReader();
                 reader.onload = function(event) {
@@ -139,7 +161,6 @@
             
             const ctx = outputCanvas.getContext('2d');
             
-            // เคลียร์พื้นหลังให้เป็นสีขาวก่อนวาดเนื้อหา PDF
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, outputCanvas.width, outputCanvas.height);
 
@@ -148,10 +169,8 @@
                 viewport: viewport
             };
             
-            // รอให้ข้อความและเอกสารเดิมถูกวาดจนเสร็จ
             await page.render(renderContext).promise;
             
-            // แสตมป์ลายน้ำไทยทับลงไป
             drawWatermarkLayer(ctx, outputCanvas.width, outputCanvas.height);
             
             document.getElementById('previewPlaceholder').classList.add('hidden');
@@ -322,6 +341,13 @@
             ctx.restore();
         }
 
+        // เพิ่มการฟาดซ้ำพรีวิวเมื่อผู้ใช้เปลี่ยนประเภทเอกสารรูปภาพ
+        document.querySelectorAll('input[name="docType"]').forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (!isPdfMode) renderImagePreview();
+            });
+        });
+
         purposeInput.addEventListener('input', () => {
             if (isPdfMode) renderPdfPageToPreview(1);
             else renderImagePreview();
@@ -335,13 +361,9 @@
         generateBtn.addEventListener('click', async () => {
             if (isPdfMode) {
                 if (!pdfDocInstance) return;
-                
-                // เปลี่ยนข้อความปุ่มระหว่างประมวลผลเซฟไฟล์
                 generateBtn.disabled = true;
                 generateBtn.innerText = "กำลังประมวลผลเอกสาร...";
-                
                 await exportMultiPagePdf();
-                
                 generateBtn.disabled = false;
                 generateBtn.innerText = "Gen & Save to PDF";
             } else {
@@ -353,73 +375,70 @@
             }
         });
 
-function exportImageToPdf() {
-    const { jsPDF } = window.jspdf;
-    
-    // 1. ตรวจสอบประเภทเอกสารที่ผู้ใช้เลือกจากหน้าจอ
-    const selectedDocType = document.querySelector('input[name="docType"]:checked')?.value || 'other';
-    
-    // ตั้งค่าเริ่มต้นของ PDF เป็นแนวตั้งตามมาตรฐาน A4
-    let orientation = 'p';
-    
-    // ถ้ารูปภาพอัปโหลดมาเป็นแนวนอนเด่นชัด (และไม่ใช่บัตร/พาสปอร์ตที่บังคับขนาด) ให้ปรับ PDF เป็นแนวนอน
-    if (selectedDocType === 'other' && outputCanvas.width > outputCanvas.height) {
-        orientation = 'l';
-    }
-    
-    const pdf = new jsPDF(orientation, 'mm', 'a4');
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const canvasRatio = outputCanvas.width / outputCanvas.height;
-    
-    let printWidth = 0;
-    let printHeight = 0;
-    
-    // 2. ขบวนการคำนวณขนาดตามประเภทเอกสารจริง (Actual Size Control)
-    if (selectedDocType === 'idcard') {
-        // ขนาดบัตรประชาชนมาตรฐานคือ 86mm x 54mm
-        if (canvasRatio >= 1) { 
-            printWidth = 86;
-            printHeight = 86 / canvasRatio;
-        } else {
-            printHeight = 54;
-            printWidth = 54 * canvasRatio;
+        // ฟังก์ชันส่งออกไฟล์ภาพที่แก้ไขปัญหา ขนาดเต็มหน้ากระดาษ A4 สำเร็จ 100%
+        function exportImageToPdf() {
+            const { jsPDF } = window.jspdf;
+            
+            const selectedDocType = document.querySelector('input[name="docType"]:checked')?.value || 'other';
+            let orientation = 'p';
+            
+            // อ่านค่าขนาดกว้าง-สูง และสัดส่วนที่แท้จริงจากภาพต้นฉบับ (croppedCanvas)
+            const imgWidth = croppedCanvas.width;
+            const imgHeight = croppedCanvas.height;
+            const realRatio = imgWidth / imgHeight;
+            
+            if (selectedDocType === 'other' && imgWidth > imgHeight) {
+                orientation = 'l';
+            }
+            
+            const pdf = new jsPDF(orientation, 'mm', 'a4');
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            
+            let printWidth = 0;
+            let printHeight = 0;
+            
+            // ประมวลผลขนาดพิมพ์จริงตามมาตรฐานความปลอดภัยทางกฎหมาย
+            if (selectedDocType === 'idcard') {
+                // บัตรประชาชน: ความกว้างมาตรฐาน 86 มม.
+                if (realRatio >= 1) { 
+                    printWidth = 86;
+                    printHeight = 86 / realRatio;
+                } else {
+                    printHeight = 54;
+                    printWidth = 54 * realRatio;
+                }
+            } 
+            else if (selectedDocType === 'passport') {
+                // พาสปอร์ตหน้าคู่กางออก: ความกว้างมาตรฐาน 180 มม.
+                if (realRatio >= 1) {
+                    printWidth = 180;
+                    printHeight = 180 / realRatio;
+                } else {
+                    printHeight = 180;
+                    printWidth = 180 * realRatio;
+                }
+            } 
+            else {
+                // เอกสารทั่วไป (Other): ขยายเกือบเต็มหน้า (Fit Page) โดยเว้นขอบข้างละ 10 มม.
+                printWidth = pageWidth - 20;
+                printHeight = printWidth / realRatio;
+                
+                if (printHeight > (pageHeight - 20)) {
+                    printHeight = pageHeight - 20;
+                    printWidth = printHeight * realRatio;
+                }
+            }
+            
+            // คำนวณพิกัดให้ตัวภาพวางอยู่ "จุดกึ่งกลางหน้ากระดาษ A4" เสมอ ไม่ว่าจะเล็กหรือใหญ่
+            const xOffset = (pageWidth - printWidth) / 2;
+            const yOffset = (pageHeight - printHeight) / 2;
+            
+            const imgData = outputCanvas.toDataURL('image/jpeg', 0.95);
+            pdf.addImage(imgData, 'JPEG', xOffset, yOffset, printWidth, printHeight);
+            pdf.save('Certified_Document.pdf');
         }
-    } 
-    else if (selectedDocType === 'passport') {
-        // ขนาดพาสปอร์ตแบบ 2 หน้าคู่กันเมื่อกางออกคือ 180mm x 125mm
-        if (canvasRatio >= 1) {
-            // ถ้ารูปถ่ายมาเป็นแนวนอน (หน้าคู่กางออก) ให้ล็อกความกว้างไว้ที่ 180mm
-            printWidth = 180;
-            printHeight = 180 / canvasRatio;
-        } else {
-            // ถ้ารูปถ่ายมาเป็นแนวตั้ง ให้ล็อกความสูงไว้ที่ 180mm แทน
-            printHeight = 180;
-            printWidth = 180 * canvasRatio;
-        }
-    } 
-    else {
-        // สำหรับเอกสารทั่วไป (Other) ให้ใช้ Logic ขยายเกือบเต็มหน้า (Fit Page)
-        printWidth = pageWidth - 20;
-        printHeight = printWidth / canvasRatio;
-        
-        if (printHeight > (pageHeight - 20)) {
-            printHeight = pageHeight - 20;
-            printWidth = printHeight * canvasRatio;
-        }
-    }
-    
-    // 3. คำนวณตำแหน่งให้อยู่ "กึ่งกลางหน้ากระดาษ A4" เสมอ ไม่ว่าจะเล็กหรือใหญ่
-    const xOffset = (pageWidth - printWidth) / 2;
-    const yOffset = (pageHeight - printHeight) / 2;
-    
-    // ส่งออกเป็นไฟล์ PDF คุณภาพสูง
-    const imgData = outputCanvas.toDataURL('image/jpeg', 0.95);
-    pdf.addImage(imgData, 'JPEG', xOffset, yOffset, printWidth, printHeight);
-    pdf.save('Certified_Document.pdf');
-}
 
-        // คีย์หลักในการแก้ไขปัญหา: ลูปประมวลผลรอเรนเดอร์เนื้อหาทีละหน้าแบบ Sync ครบถ้วน
         async function exportMultiPagePdf() {
             const { jsPDF } = window.jspdf;
             let finalPdf = null;
@@ -429,13 +448,10 @@ function exportImageToPdf() {
             
             for (let i = 1; i <= totalPages; i++) {
                 const page = await pdfDocInstance.getPage(i);
-                
-                // ใช้ Scale 2.0 ในการแปลงหน้าไฟล์จริงเพื่อรักษาความละเอียดเนื้อเอกสาร
                 const viewport = page.getViewport({ scale: 2.0 });
                 hiddenWorkerCanvas.width = viewport.width;
                 hiddenWorkerCanvas.height = viewport.height;
                 
-                // รีเซ็ตล้างพื้นหลังเป็นสีขาวให้พนักงานก่อนเรนเดอร์ข้อความเอกสาร
                 workerCtx.fillStyle = '#ffffff';
                 workerCtx.fillRect(0, 0, hiddenWorkerCanvas.width, hiddenWorkerCanvas.height);
                 
@@ -444,10 +460,7 @@ function exportImageToPdf() {
                     viewport: viewport
                 };
                 
-                // บังคับให้ขบวนการวาดเนื้อความ PDF ดั้งเดิมเสร็จสิ้นเรียบร้อย (หัวใจสำคัญในการแก้บั๊ก)
                 await page.render(renderContext).promise;
-                
-                // นำเลเยอร์ข้อความไทยคาดกลางมาประทับทับลงบนเนื้อหานั้นๆ
                 drawWatermarkLayer(workerCtx, hiddenWorkerCanvas.width, hiddenWorkerCanvas.height);
                 
                 const pageOrientation = hiddenWorkerCanvas.width >= hiddenWorkerCanvas.height ? 'l' : 'p';
@@ -461,7 +474,6 @@ function exportImageToPdf() {
                 const pWidth = finalPdf.internal.pageSize.getWidth();
                 const pHeight = finalPdf.internal.pageSize.getHeight();
                 
-                // ดึงภาพรวมร่าง (เนื้อหาเดิม + ลายน้ำคาดกลาง) ใส่เข้าชุดหน้ากระดาษ PDF
                 const imgData = hiddenWorkerCanvas.toDataURL('image/jpeg', 0.92);
                 finalPdf.addImage(imgData, 'JPEG', 0, 0, pWidth, pHeight);
             }
