@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+        <link rel="manifest" href="manifest.json">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบจัดทำสำเนาเอกสารปลอดภัย (PDPA Compliance)</title>
+
+    <!-- ========================================== -->
+    <!-- 1. ส่วนของ Icon สำหรับแสดงบน Browser & คอมพิวเตอร์ -->
+    <!-- ========================================== -->
+    <link rel="shortcut icon" href="ICON SIAM-HRBP Full.png" type="image/x-icon">
+    <link rel="icon" href="ICON SIAM-HRBP Full.ico" type="image/x-icon">
+    
+    <!-- สำหรับอุปกรณ์ iOS / iPhone -->
+    <link rel="apple-touch-icon" href="ICON SIAM-HRBP Full.png">
+
+    <!-- ========================================== -->
+    <!-- 2. ส่วนของ Meta Tags สำหรับเวลาแชร์ลิงก์ไปที่มือถือ (LINE / Facebook) -->
+    <!-- ========================================== -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="ระบบสร้างสำเนาเอกสารปลอดภัย - SIAM-HRBP">
+    <meta property="og:description" content="ระบบจัดทำสำเนาเอกสารลบลายน้ำอัตโนมัติ ถูกต้องตามมาตราฐานขนาดจริง 100% (PDPA Compliant)">
+    <meta property="og:image" content="ICON SIAM-HRBP Full.png">
+    <meta property="og:image:width" content="256">
+    <meta property="og:image:height" content="256">
+
+    <!-- Tailwind CSS สำหรับตกแต่ง UI -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- OpenCV.js สำหรับระบบวิเคราะห์และ Crop บัตรอัตโนมัติ -->
+    <script async src="https://docs.opencv.org/4.x/opencv.js" type="text/javascript" id="opencv-js"></script>
+    <!-- jsPDF สำหรับการแปลงเป็น PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap');
+        body { font-family: 'Sarabun', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col justify-between">
+
+    <div class="container mx-auto max-w-4xl p-4 md:p-8">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-blue-800 mb-2">ระบบสร้างสำเนาเอกสารปลอดภัย</h1>
+            <p class="text-sm text-green-600 font-semibold flex justify-center items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                PDPA Compliant: ล็อกขนาดพิมพ์จริง (บัตรประชาชน 8.6x5.4 ซม. / พาสปอร์ต 12.5x8.5 ซม.)
+            </p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <!-- ฝั่งควบคุมและกรอกข้อมูล -->
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">1. อัปโหลดรูปภาพ (บัตรประชาชน / พาสปอร์ต)</label>
+                    <input type="file" id="imageInput" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"/>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">2. ประเภทเอกสาร (บังคับขนาดพิมพ์ส่งออก)</label>
+                    <div class="flex gap-4">
+                        <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                            <input type="radio" name="docType" value="idcard" checked id="radioIdCard" class="h-4 w-4 text-blue-600 focus:ring-blue-500">
+                            บัตรประชาชน (8.6 x 5.4 ซม.)
+                        </label>
+                        <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                            <input type="radio" name="docType" value="passport" id="radioPassport" class="h-4 w-4 text-blue-600 focus:ring-blue-500">
+                            พาสปอร์ต (12.5 x 8.5 ซม.)
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">3. วัตถุประสงค์การใช้งาน</label>
+                    <input type="text" id="purposeInput" placeholder="ใช้สำหรับรับมอบอำนาจเข้าชี้แจงเกี่ยวกับสภาพการจ้างเท่านั้น" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">4. วันที่ใช้บัตร</label>
+                    <input type="date" id="dateInput" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+
+                <button id="generateBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition duration-200 shadow-md flex justify-center items-center gap-2 cursor-pointer">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    Gen & Save to PDF
+                </button>
+            </div>
+
+            <!-- ฝั่งแสดงผล Preview -->
+            <div class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-2xl p-4 bg-gray-50 min-h-[300px]">
+                <span id="previewPlaceholder" class="text-gray-400 text-sm">รูปภาพตัวอย่างสำเนาจะแสดงที่นี่</span>
+                <div id="canvasContainer" class="relative hidden max-w-full overflow-hidden rounded-lg shadow-sm">
+                    <canvas id="outputCanvas" class="max-w-full h-auto"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="sourceCanvas" class="hidden"></canvas>
+    <canvas id="croppedCanvas" class="hidden"></canvas>
+
+    <!-- Footer -->
+    <footer class="text-center py-4 text-xs text-gray-400 border-t border-gray-100 mt-8 bg-white w-full">
+        @2024 Siam-HRBP Soft
+    </footer>
+
+    <script>
+        document.getElementById('dateInput').valueAsDate = new Date();
+
+        const imageInput = document.getElementById('imageInput');
+        const purposeInput = document.getElementById('purposeInput');
+        const dateInput = document.getElementById('dateInput');
+        const generateBtn = document.getElementById('generateBtn');
+        const radioIdCard = document.getElementById('radioIdCard');
+        const radioPassport = document.getElementById('radioPassport');
+        
+        const sourceCanvas = document.getElementById('sourceCanvas');
+        const croppedCanvas = document.getElementById('croppedCanvas');
+        const outputCanvas = document.getElementById('outputCanvas');
+        
+        let originalImage = null;
+
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                originalImage = new Image();
+                originalImage.onload = function() {
+                    processAndCropCard();
+                };
+                originalImage.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function processAndCropCard() {
+            const srcCtx = sourceCanvas.getContext('2d');
+            sourceCanvas.width = originalImage.width;
+            sourceCanvas.height = originalImage.height;
+            srcCtx.drawImage(originalImage, 0, 0);
+
+            if (typeof cv !== 'undefined' && cv.Mat) {
+                try {
+                    let src = cv.imread(sourceCanvas);
+                    let dst = new cv.Mat();
+                    let gray = new cv.Mat();
+                    let blurred = new cv.Mat();
+                    let edged = new cv.Mat();
+
+                    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+                    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+                    cv.Canny(blurred, edged, 75, 200);
+
+                    let contours = new cv.MatVector();
+                    let hierarchy = new cv.Mat();
+                    cv.findContours(edged, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+                    let maxArea = 0;
+                    let maxContourIndex = -1;
+
+                    for (let i = 0; i < contours.size(); ++i) {
+                        let area = cv.contourArea(contours.get(i));
+                        if (area > maxArea) {
+                            maxArea = area;
+                            maxContourIndex = i;
+                        }
+                    }
+
+                    if (maxContourIndex !== -1 && maxArea > (src.rows * src.cols * 0.15)) {
+                        let rect = cv.boundingRect(contours.get(maxContourIndex));
+                        croppedCanvas.width = rect.width;
+                        croppedCanvas.height = rect.height;
+                        const cropCtx = croppedCanvas.getContext('2d');
+                        cropCtx.drawImage(sourceCanvas, rect.x, rect.y, rect.width, rect.height, 0, 0, rect.width, rect.height);
+                    } else {
+                        useOriginalAsCropped();
+                    }
+
+                    src.delete(); dst.delete(); gray.delete(); blurred.delete(); edged.delete();
+                    contours.delete(); hierarchy.delete();
+
+                } catch (err) {
+                    useOriginalAsCropped();
+                }
+            } else {
+                useOriginalAsCropped();
+            }
+
+            const aspectRatio = croppedCanvas.width / croppedCanvas.height;
+            if (aspectRatio < 1.25) { 
+                radioPassport.checked = true;
+            } else {
+                radioIdCard.checked = true;
+            }
+
+            renderPreview();
+        }
+
+        function useOriginalAsCropped() {
+            croppedCanvas.width = sourceCanvas.width;
+            croppedCanvas.height = sourceCanvas.height;
+            const cropCtx = croppedCanvas.getContext('2d');
+            cropCtx.drawImage(sourceCanvas, 0, 0);
+        }
+
+        function wrapText(ctx, text, maxWidth) {
+            let words = text.split('');
+            let lines = [];
+            let currentLine = '';
+
+            for (let n = 0; n < words.length; n++) {
+                let testLine = currentLine + words[n];
+                let metrics = ctx.measureText(testLine);
+                let testWidth = metrics.width;
+                if (testWidth > maxWidth && n > 0) {
+                    lines.push(currentLine);
+                    currentLine = words[n];
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        }
+
+        function renderPreview() {
+            if (!originalImage) return;
+
+            const purpose = purposeInput.value || "ใช้สำหรับรับมอบอำนาจเข้าชี้แจงเกี่ยวกับสภาพการจ้างเท่านั้น";
+            
+            let dateText = "";
+            if (dateInput.value) {
+                const d = new Date(dateInput.value);
+                dateText = `${d.getDate()}/${d.getMonth()+1}/${d.getFullYear() + 543}`;
+            }
+
+            outputCanvas.width = 1200;
+            const scaleRatio = 1200 / croppedCanvas.width;
+            outputCanvas.height = croppedCanvas.height * scaleRatio;
+            
+            const ctx = outputCanvas.getContext('2d');
+            ctx.drawImage(croppedCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
+
+            const fontSize = 34; 
+            ctx.font = `bold ${fontSize}px 'Sarabun'`;
+            
+            const maxTextWidth = outputCanvas.width * 0.75;
+            const lines = wrapText(ctx, purpose, maxTextWidth);
+
+            const centerX = outputCanvas.width / 2;
+            const centerY = outputCanvas.height / 2;
+            const angle = -25 * Math.PI / 180; 
+            
+            const lineHeight = 44;
+            const baseSpacing = 30;
+            const dynamicSpacing = baseSpacing + (lines.length * lineHeight);
+
+            let maxLineLen = 0;
+            lines.forEach(line => {
+                const w = ctx.measureText(line).width;
+                if (w > maxLineLen) maxLineLen = w;
+            });
+            const lineLength = maxLineLen + 60; 
+
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.rotate(angle);
+
+            ctx.strokeStyle = "rgba(0, 30, 230, 0.85)"; 
+            ctx.lineWidth = 5;
+
+            ctx.beginPath();
+            ctx.moveTo(-lineLength / 2, -dynamicSpacing / 2);
+            ctx.lineTo(lineLength / 2, -dynamicSpacing / 2);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(-lineLength / 2, dynamicSpacing / 2);
+            ctx.lineTo(lineLength / 2, dynamicSpacing / 2);
+            ctx.stroke();
+
+            ctx.fillStyle = "rgba(0, 20, 200, 0.95)";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            const startY = -((lines.length - 1) * lineHeight) / 2;
+            for (let i = 0; i < lines.length; i++) {
+                ctx.fillText(lines[i], 0, startY + (i * lineHeight));
+            }
+            ctx.restore();
+
+            ctx.save();
+            ctx.fillStyle = "rgba(0, 20, 200, 0.95)";
+            ctx.textBaseline = "alphabetic";
+            ctx.font = `bold ${fontSize}px 'Sarabun'`;
+            ctx.textAlign = "center";
+
+            const footerX = outputCanvas.width * 0.55; 
+            const footerYStart = centerY + (dynamicSpacing / 2) + 60;
+
+            ctx.fillText("สำเนาถูกต้อง", footerX, footerYStart);
+            ctx.fillText(dateText, footerX, footerYStart + 50);
+            ctx.restore();
+
+            document.getElementById('previewPlaceholder').classList.add('hidden');
+            document.getElementById('canvasContainer').classList.remove('hidden');
+        }
+
+        purposeInput.addEventListener('input', renderPreview);
+        dateInput.addEventListener('change', renderPreview);
+        radioIdCard.addEventListener('change', renderPreview);
+        radioPassport.addEventListener('change', renderPreview);
+
+        generateBtn.addEventListener('click', () => {
+            if (!originalImage) {
+                alert("กรุณาอัปโหลดรูปภาพก่อนครับ");
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4'); 
+            const imgData = outputCanvas.toDataURL('image/jpeg', 0.95);
+            
+            const isPassport = document.querySelector('input[name="docType"]:checked').value === "passport";
+            
+            let targetWidthMm = 86;   
+            let targetHeightMm = 54;  
+
+            if (isPassport) {
+                targetWidthMm = 125;  
+                targetHeightMm = 85;  
+            }
+
+            const xOffset = (210 - targetWidthMm) / 2;
+            const yOffset = (297 - targetHeightMm) / 2;
+
+            pdf.addImage(imgData, 'JPEG', xOffset, yOffset, targetWidthMm, targetHeightMm);
+            pdf.save('Certified_Document.pdf');
+        });
+    </script>
+</body>
+</html>
